@@ -13,14 +13,11 @@ function activate(context) {
 
   // create a new word counter
   let wordCounter = new WordCounter();
-
-  let disposable = vscode.commands.registerCommand('extension.sayHello', () => {
-    wordCounter.updateWordCount();
-  });
+  let controller = new WordCounterController(wordCounter);
 
   // Add to a list of disposables which are disposed when this extension is deactivated.
+  context.subscriptions.push(controller);
   context.subscriptions.push(wordCounter);
-  context.subscriptions.push(disposable);
 }
 exports.activate = activate;
 
@@ -73,5 +70,32 @@ class WordCounter {
 
   dispose() {
     this._statusBarItem.dispose();
+  }
+}
+
+class WordCounterController {
+
+  constructor(wordCounter) {
+    this._wordCounter = wordCounter;
+
+    // subscribe to selection change and editor activation events
+    let subscriptions = [];
+    vscode.window.onDidChangeTextEditorSelection(this._onEvent, this, subscriptions);
+    vscode.window.onDidChangeActiveTextEditor(this._onEvent, this, subscriptions);
+
+    // update the counter for the current file
+    this._wordCounter.updateWordCount();
+
+    // create a combined disposable from both event subscriptions
+    this._disposable = vscode.Disposable.from(...subscriptions);
+  }
+
+
+  dispose() {
+    this._disposable.dispose();
+  }
+
+  _onEvent() {
+    this._wordCounter.updateWordCount();
   }
 }
